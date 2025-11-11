@@ -1,0 +1,7 @@
+# requirements.txt for Stable Diffusion Streamlit GUI
+streamlit>=1.30.0
+torch>=2.1.0
+diffusers>=0.22.0
+Pillow>=10.0.0
+transformers>=4.35.0
+xformers>=0.0.20
