@@ -6,7 +6,10 @@ A simple Streamlit web app to generate AI images using Stable Diffusion. Users c
 - Text-to-image generation using Stable Diffusion
 - Selectable styles: anime, photo, video game, watercolor, or none
 - Adjustable guidance scale and inference steps
-- Generate multiple images at once
+- Progress indicators: progress bar updates per image
+- Image download button
+- Batch generation with queueing
+- Sidebar text area for negative prompts
 
 ## Installation
 
@@ -25,4 +28,7 @@ streamlit run app.py
 ## Notes
 -	GPU is recommended for faster image generation.
 - Style presets can be extended in style_dict inside app.py.
+
+MIT License
+Copyright (c) 2025 Bartholomeow Aobe
 
