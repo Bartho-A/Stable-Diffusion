@@ -1,3 +1,4 @@
+# CPU optimized
 # import libraries
 
 import streamlit as st
