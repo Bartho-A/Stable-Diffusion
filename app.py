@@ -1,70 +1,119 @@
-# import needed libraries
-import diffusers
+# Import libraries
+
 import streamlit as st
 import torch
-from PIL import ImageDraw, ImageFont
+from diffusers import StableDiffusionPipeline
 
-# Set the device and `dtype` for GPUs
+# -----------------------------
+# Device configuration
+# -----------------------------
 if torch.cuda.is_available():
     device = "cuda"
     dtype = torch.float16
 else:
     device = "cpu"
     dtype = torch.float32
-    
-# The dictionary mapping style names to style strings
+
+# -----------------------------
+# Style dictionary
+# -----------------------------
 style_dict = {
     "none": "",
     "anime": "cartoon, animated, Studio Ghibli style, cute, Japanese animation",
-    # A photograph on film suggests an artistic approach
     "photo": "photograph, film, 35 mm camera",
-    "video game": "rendered in unreal engine, hyper-realistic, volumetric lighting, --ar 9:16 --hd --q 2",
-    "watercolor": "painting, watercolors, pastel, composition",
+    "video game": "rendered in unreal engine, hyper-realistic, volumetric lighting",
+    "watercolor": "painting, watercolors, pastel, soft composition",
 }
 
-# Cache the model so it loads only once
+# -----------------------------
+# Load model
+# -----------------------------
 @st.cache_resource
-# Load Stable Diffusion (load_model function)
+
 def load_model():
-    pipeline = diffusers.StableDiffusionPipeline.from_pretrained(
-        "CompVis/stable-diffusion-v1-4",
-        torch_dtype=dtype
+    """
+    Loads a CPU-friendly Stable Diffusion model and applies
+    optimizations for inference without a GPU.
+    """
+    pipe = StableDiffusionPipeline.from_pretrained(
+        "stabilityai/sd-turbo",
+        torch_dtype=dtype,
     )
 
-    pipeline.to(device)
+    pipe = pipe.to(device)
 
-    return pipeline
+    # CPU optimizations
+    pipe.enable_attention_slicing()
 
-
-# The generate_images function
-def generate_images(prompt, pipeline, n, guidance=7.5, steps=50, style="none"):
-    return pipeline([(prompt + " " + style_dict.get(style, "")) * n], guidance_scale=guidance, num_inference_steps=steps).images
+    return pipe
 
 
-# The main function
+# -----------------------------
+# Image generation function
+# -----------------------------
+
+def generate_image(prompt, pipeline, guidance, steps, style):
+    full_prompt = prompt + " " + style_dict.get(style, "")
+
+    result = pipeline(
+        full_prompt,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        height=384,
+        width=384,
+    )
+
+    return result.images[0]
+
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+
 def main():
-    st.title("Stable Diffusion GUI")
+    st.set_page_config(page_title="Stable Diffusion (CPU Optimized)")
+    st.title("Stable Diffusion – CPU Optimized")
 
-    num_images = st.sidebar.number_input("Number of Images", min_value=1, max_value=10)
+    st.sidebar.header("Generation Settings")
+
     prompt = st.sidebar.text_area("Text-to-Image Prompt")
 
-    guidance_help = "Lower values follow the prompt less strictly. Higher values risk distored images."
-    guidance = st.sidebar.slider("Guidance", 2.0, 15.0, 7.5, help=guidance_help)
+    guidance = st.sidebar.slider(
+        "Guidance Scale",
+        min_value=2.0,
+        max_value=7.0,
+        value=5.0,
+        help="Lower values are faster and more CPU-friendly",
+    )
 
-    steps_help = "More steps produces better images but takes longer."
-    steps = st.sidebar.slider("Steps", 10, 150, 50, help=steps_help)
+    steps = st.sidebar.slider(
+        "Inference Steps",
+        min_value=5,
+        max_value=30,
+        value=15,
+        help="More steps = better quality but much slower on CPU",
+    )
 
-    style = st.sidebar.selectbox("Style", options=style_dict.keys())
+    style = st.sidebar.selectbox("Style", options=list(style_dict.keys()))
 
-    generate = st.sidebar.button("Generate Images")
+    generate = st.sidebar.button("Generate Image")
+
     if generate:
-        with st.spinner("Generating images..."):
+        if not prompt.strip():
+            st.warning("Please enter a prompt.")
+            return
+
+        with st.spinner("Generating image (CPU, please wait)..."):
             pipeline = load_model()
-            images = generate_images(
-                prompt, pipeline, num_images, guidance, steps, style
+            image = generate_image(
+                prompt=prompt,
+                pipeline=pipeline,
+                guidance=guidance,
+                steps=steps,
+                style=style,
             )
-            for im in images:
-                st.image(im)
+
+        st.image(image, caption="Generated Image", use_column_width=True)
 
 
 if __name__ == "__main__":
